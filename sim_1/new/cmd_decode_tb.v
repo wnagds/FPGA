@@ -34,6 +34,7 @@ module cmd_decode_tb( );
     .sclk               (sclk),
     .reset              (reset),
     .rs232_rx           (rs232_rx),
+    
     .rx_data            (uart_data),
     .po_flag            (uart_flag)
     );
@@ -48,4 +49,59 @@ module cmd_decode_tb( );
         .wfifo_wr_en           (wfifo_wr_en),
         .wfifo_data            (wfifo_data)
         );
+        initial begin
+            sclk = 1;
+            reset = 0;
+            #201;
+            reset = 1;
+            tx_byte;
+            $stop;
+        end
+        always #10 sclk = ~sclk;
+        task tx_byte();
+            repeat(2)begin
+                tx_bit(8'h55);  //–¥√¸¡Ó
+                #3000;
+                tx_bit(8'h12);
+                #3000;
+                tx_bit(8'h34);
+                #3000;
+                tx_bit(8'h56);
+                #3000;
+                tx_bit(8'h78);
+                #3000;
+                tx_bit(8'haa);  //∂¡√¸¡Ó
+                #3000;
+            end
+        endtask
+            
+            task tx_bit;
+            input [7:0]data;
+            begin
+               rs232_rx=1;
+               #20;
+               rs232_rx=0;
+               #8680;
+               
+               rs232_rx=data[0];
+               #8680;
+               rs232_rx=data[1];
+               #8680;
+               rs232_rx=data[2];
+               #8680;   
+               rs232_rx=data[3];
+              #8680;
+              rs232_rx=data[4];
+              #8680;
+              rs232_rx=data[5];
+              #8680;      
+              rs232_rx=data[6];
+              #8680;
+              rs232_rx=data[7];
+              #8680;      
+              
+              rs232_rx=1;
+              #8680;
+            end
+        endtask
 endmodule
