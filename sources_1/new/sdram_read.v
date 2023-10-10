@@ -21,38 +21,25 @@
 
 
 module sdram_read(
-    sclk,
-    reset,
-    //仲裁接口
-    rd_req,
-    rd_en,
-    flag_rd_end,
-    ref_req,
-    //与sdram的接口
-    rd_cmd,
-    rd_addr,
-    rd_data,
-    bank_addr,
-    //其他
-    rd_trig
-    );
-    input sclk;
-    input reset;
-    
-    //仲裁接口
-    input rd_en;
-    input ref_req;
-    output flag_rd_end;
-    output rd_req;
-    //sdram接口
-    output reg [3:0]    rd_cmd;
-    output reg [11:0]   rd_addr;
-    output [1:0]    bank_addr;
-    input[15:0] rd_data;
-    //其他
-    input rd_trig;
-    
-    
+  input                sclk,
+  input                reset,
+  //仲裁接口
+  input                rd_req,
+  input                rd_en,
+  output    reg       flag_rd_end,
+  output               ref_req,
+  //与sdram的接口
+  output reg  [3:0]    rd_cmd,
+  output reg  [11:0]   rd_addr,
+  output      [1:0]    bank_addr ,
+  input       [15:0]   sdram_rd_data,
+  //其他
+  input                rd_trig,
+  //读fifo接口
+  output               rfifo_wr_en,
+  output      [7:0]    rfifo_wr_data
+);
+
     //定义状态
     localparam  S_IDLE  =   5'b0_0001;
     localparam  S_REQ   =   5'b0_0010;
@@ -70,7 +57,6 @@ module sdram_read(
     //---------------------------------//
     reg                 flag_act_end;
     reg                 flag_pre_end;
-    reg                 flag_rd_end;
     reg                 sd_row_end;
     reg [1:0]           burst_cnt;
     reg [1:0]           burst_cnt_t;
@@ -82,16 +68,28 @@ module sdram_read(
     //--------------------------------------
     reg [11:0]          row_addr;
     wire[8:0]           col_addr;
-    reg                 ref_req_r;
-   assign col_addr      =   {col_cnt,burst_cnt_t};
-   assign bank_addr     =   2'b00;
-   always@(posedge sclk or negedge reset)
-   begin
+//    reg                 ref_req_r;
+    reg         [3:0]   rfifo_wr_en_r;
+    always@(posedge sclk or negedge reset)
+    begin
         if(!reset)
-            ref_req_r <= 0;
-        else if(ref_req == 1 && ref_req_r == 0)
-            ref_req_r <= 1;
-   end
+            rfifo_wr_en_r <=0;
+        else begin
+            rfifo_wr_en_r[0]<=(state == S_RD);
+            rfifo_wr_en_r[1]<= rfifo_wr_en_r[0];
+            rfifo_wr_en_r[2]<= rfifo_wr_en_r[1];
+            rfifo_wr_en_r[3]<= rfifo_wr_en_r[2];
+        end
+    end
+    
+   
+//   always@(posedge sclk or negedge reset)
+//   begin
+//        if(!reset)
+//            ref_req_r <= 0;
+//        else if(ref_req == 1 && ref_req_r == 0)
+//            ref_req_r <= 1;
+//   end
    always@(posedge sclk or negedge reset) 
    begin
         if(!reset)
@@ -150,7 +148,7 @@ module sdram_read(
                     state <= S_REQ; 
                 else if(flag_pre_end == 1'b1 && flag_rd == 1'b1)
                     state <= S_ACT;
-                else if(rd_data_end == 1'b1)
+                else if(flag_rd == 0)
                     state <= S_IDLE;
             default: 
                     state <= S_IDLE;
@@ -226,7 +224,7 @@ module sdram_read(
         if(!reset)
             flag_rd_end <= 0;
         else if(state == S_PRE && ref_req == 1 ||
-                state == S_PRE && rd_data_end == 1)
+                state == S_PRE && flag_rd == 0)
             flag_rd_end <= 1;
         else 
             flag_rd_end <= 0;
@@ -245,7 +243,7 @@ module sdram_read(
     begin
         if(!reset)
             rd_data_end <= 0;
-        else if(row_addr >= 1 && col_addr ==511)
+        else if(row_addr == 0 && burst_cnt_t == 1)
             rd_data_end <= 1;
         else 
             rd_data_end <=0;
@@ -285,5 +283,8 @@ module sdram_read(
 //            3:  rd_data <=  'd9;
 //        endcase
 //    end
-    
+    assign col_addr      =   {col_cnt,burst_cnt_t};
+   assign bank_addr     =   2'b00;
+   assign rfifo_wr_data =   sdram_rd_data[7:0];
+   assign rfifo_wr_en   =   rfifo_wr_en_r[2];
 endmodule

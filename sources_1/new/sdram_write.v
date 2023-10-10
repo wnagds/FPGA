@@ -34,7 +34,9 @@ module sdram_write(
     bank_addr,
     wr_data,
     //其他
-    wr_trig
+    wr_trig,
+    wfifo_rd_en,
+    wfifo_rd_data
     );
     input sclk;
     input reset;
@@ -48,11 +50,12 @@ module sdram_write(
     output reg [3:0]    wr_cmd;
     output reg [11:0]   wr_addr;
     output [1:0]    bank_addr;
-    output reg[15:0] wr_data;
+    output [15:0] wr_data;
     //其他
     input wr_trig;
-    
-    
+    //写fifo接口
+    output wfifo_rd_en;
+    input  [7:0]wfifo_rd_data;
     //定义状态
     localparam  S_IDLE  =   5'b0_0001;
     localparam  S_REQ   =   5'b0_0010;
@@ -83,8 +86,7 @@ module sdram_write(
     reg [11:0]          row_addr;
     wire[8:0]           col_addr;
     reg                 ref_req_r;
-   assign col_addr      =   {col_cnt,burst_cnt_t};
-   assign bank_addr     =   2'b00;
+   
    always@(posedge sclk or negedge reset)
    begin
         if(!reset)
@@ -150,7 +152,7 @@ module sdram_write(
                     state <= S_REQ; 
                 else if(flag_pre_end == 1'b1 && flag_wr == 1'b1)
                     state <= S_ACT;
-                else if(wr_data_end == 1'b1)
+                else if(flag_wr == 1'b0)
                     state <= S_IDLE;
             default: 
                     state <= S_IDLE;
@@ -226,7 +228,7 @@ module sdram_write(
         if(!reset)
             flag_wr_end <= 0;
         else if(state == S_PRE && ref_req == 1 ||
-                state == S_PRE && wr_data_end == 1)
+                state == S_PRE && flag_wr == 0)
             flag_wr_end <= 1;
         else 
             flag_wr_end <= 0;
@@ -245,7 +247,7 @@ module sdram_write(
     begin
         if(!reset)
             wr_data_end <= 0;
-        else if(row_addr >= 1 && col_addr ==511)
+        else if(row_addr == 0 && burst_cnt_t == 1)
             wr_data_end <= 1;
         else 
             wr_data_end <=0;
@@ -276,14 +278,10 @@ module sdram_write(
         else sd_row_end<=0;
     end
     
-    always @(*)
-    begin
-        case(burst_cnt_t)
-            0:  wr_data <=  'd3;
-            1:  wr_data <=  'd5;
-            2:  wr_data <=  'd7;
-            3:  wr_data <=  'd9;
-        endcase
-    end
+assign col_addr      =   {col_cnt,burst_cnt_t};
+//assign col_addr      =   'd0;               //只使用SDRAM前4个地址
+assign bank_addr     =   2'b00;
+assign wfifo_rd_en   =   state == S_WR;
+assign wr_data       =   wfifo_rd_data;
     
 endmodule

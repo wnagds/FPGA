@@ -25,6 +25,7 @@ module cmd_decode(
     input           reset,
     input           uart_flag,
     input           [7:0]uart_data,
+    
     output          wr_trig,
     output          rd_trig,
     output          wfifo_wr_en,
@@ -53,7 +54,7 @@ module cmd_decode(
             cmd_reg <= uart_data;
     end
     
-    assign wr_trig     = uart_flag && (rec_num == REC_NUM_END);
+    assign wr_trig     = (cmd_reg == 8'h55 && rec_num == REC_NUM_END)? uart_flag : 0;
     assign rd_trig     = uart_flag && (uart_data==8'haa);
     assign wfifo_wr_en = uart_flag && rec_num;
     assign wfifo_data  = uart_data;

@@ -24,7 +24,7 @@ module sdram_top(
     //input Interface
     input               sclk,
     input               reset,
-    //output SDRAM_Interface
+//************ SDRAM接口 ***********************
     output              sdram_clk,
     output              sdram_cke,
     //output cmd
@@ -36,11 +36,17 @@ module sdram_top(
     output     [1:0]    sdram_bank,
     output reg [11:0]   sdram_addr,
     output     [1:0]    sdram_dqm,
-    //input/output data
-    inout  [15:0]   sdram_dq,
-    //其他
+    inout      [15:0]   sdram_dq,
+//*************************************************
+//*************input/output data*******************
+    //写fifo的接口
     input           wr_trig,
-    input           rd_trig
+    output          wfifo_rd_en,
+    input   [7:0]   wfifo_rd_data,
+    
+    input           rd_trig,
+    output          rfifo_wr_en,
+    output  [7:0]   rfifo_wr_data
     );
     //仲裁模块参数定义
     //初始状态
@@ -76,7 +82,6 @@ module sdram_top(
       wire [3:0]    wr_cmd;
       wire [11:0]   wr_addr;
       wire [15:0]   wr_data;
-      
       //read module
       wire          rd_req;
       reg           rd_en;
@@ -84,7 +89,7 @@ module sdram_top(
       wire [1:0]    rd_bank_addr;     
       wire [3:0]    rd_cmd;
       wire [11:0]   rd_addr;
-      wire [15:0]   rd_data;       
+      wire [15:0]   sdram_rd_data;   
     always@(posedge sclk or negedge reset)
     begin
         if(reset==1'b0)
@@ -176,19 +181,13 @@ module sdram_top(
             end
         endcase
     end
-//例化 sdram初始化模块
-    sdram_init sdram_init_inst(
-    .sclk(sclk),
-    .reset(reset),
-    .cmd_reg(init_cmd),    
-    .sdram_addr(init_addr),
-    .flag_init_end(flag_init_end)
-    );
+
     
     assign {sdram_cs,sdram_ras,sdram_cas,sdram_we}=sd_cmd;
     assign sdram_cke        =1'b1;
     assign sdram_dq       =   (state == WRITE) ? wr_data: 'bz;
-    assign rd_data        =   (state == READ) ? sdram_dq: 'bz;
+    assign sdram_rd_data   =  sdram_dq;
+    
     assign sdram_dqm=2'b00;
     assign sdram_clk =~sclk;
     assign sdram_bank = (state == WRITE) ? wr_bank_addr : rd_bank_addr;
@@ -199,7 +198,14 @@ module sdram_top(
     //数据屏蔽
     
     //sdram_bank_addr
-    
+    //例化 sdram初始化模块
+    sdram_init sdram_init_inst(
+        .sclk(sclk),
+        .reset(reset),
+        .cmd_reg(init_cmd),    
+        .sdram_addr(init_addr),
+        .flag_init_end(flag_init_end)
+    );
     sdram_aref sdram_aref_inst(
         //系统信号
         .sclk                   (sclk),
@@ -226,9 +232,12 @@ module sdram_top(
         .wr_cmd                 (wr_cmd),
         .wr_addr                (wr_addr),
         .bank_addr              (wr_bank_addr),
+        .wr_data                (wr_data),
         //其他
         .wr_trig                (wr_trig),
-        .wr_data                (wr_data)
+        //写fifo的接口
+        .wfifo_rd_en(wfifo_rd_en),
+        .wfifo_rd_data(wfifo_rd_data)
         );
     sdram_read sdram_read_inst(
         .sclk                   (sclk),
@@ -242,8 +251,10 @@ module sdram_top(
         .rd_cmd                 (rd_cmd),
         .rd_addr                (rd_addr),
         .bank_addr              (rd_bank_addr),
-        .rd_data                (rd_data),
+        .sdram_rd_data          (sdram_rd_data),
         //其他
-        .rd_trig                (rd_trig)
+        .rd_trig                (rd_trig),
+        .rfifo_wr_en            (rfifo_wr_en), 
+        .rfifo_wr_data          (rfifo_wr_data)
     );
 endmodule

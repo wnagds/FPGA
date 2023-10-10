@@ -21,18 +21,17 @@
 
 
 module uart_tx(
-    sclk,
-    reset,
-    tx_data,
-    tx_trig,
-    
-    RS232_tx
+    input           sclk              ,         
+    input           reset             ,        
+    input  [7:0]    tx_data           , 
+    input           tx_trig           ,      
+    output  reg     RS232_tx          ,
+    output          outflag_tx        ,
+    //rfifoµÄ¶Á¶Ë¿Ú
+    input           rfifo_empty       , 
+    output          rfifo_rd_en       
     );
-    input sclk;
-    input reset;
-    input [7:0]tx_data;
-    input tx_trig;
-    output reg RS232_tx;
+    
     localparam BAUD_END         =1_000_000_000/115200/20-1;
     reg bit_clk;
     reg [1:0]q;
@@ -42,11 +41,14 @@ module uart_tx(
     wire posedge_trig;
     reg [9:0]data_r;
     assign posedge_trig =(q==2'b01);
+    assign rfifo_rd_en = tx_trig && (rfifo_empty==0)&&!posedge_trig;
+    assign outflag_tx = tx_flag;
     always@(posedge sclk)
     begin
         q[0]<=tx_trig;
         q[1]<=q[0];
     end
+    
     //tx_flag 
     always@(posedge sclk or negedge reset)
     begin
