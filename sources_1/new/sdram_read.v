@@ -27,7 +27,7 @@ module sdram_read(
   input                rd_req,
   input                rd_en,
   output    reg       flag_rd_end,
-  output               ref_req,
+  input               ref_req,
   //与sdram的接口
   output reg  [3:0]    rd_cmd,
   output reg  [11:0]   rd_addr,

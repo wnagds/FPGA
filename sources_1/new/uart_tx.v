@@ -25,7 +25,7 @@ module uart_tx(
     input           reset             ,        
     input  [7:0]    tx_data           , 
     input           tx_trig           ,      
-    output  reg     RS232_tx          ,
+    output          RS232_tx          ,
     output          outflag_tx        ,
     //rfifoµÄ¶Á¶Ë¿Ú
     input           rfifo_empty       , 
@@ -43,6 +43,7 @@ module uart_tx(
     assign posedge_trig =(q==2'b01);
     assign rfifo_rd_en = tx_trig && (rfifo_empty==0)&&!posedge_trig;
     assign outflag_tx = tx_flag;
+    assign RS232_tx = (tx_flag == 1)?data_r[bit_cnt]:1;
     always@(posedge sclk)
     begin
         q[0]<=tx_trig;
@@ -86,16 +87,15 @@ module uart_tx(
      always@(posedge sclk or negedge reset)
      begin 
         if(!reset)
-            data_r<=10'b1;
+            data_r<=10'h200;
         else if(posedge_trig)
-            data_r<={1'b1,tx_data[7:0],1'b0};
+        begin
+            data_r[0] <= 0;
+            data_r[8:1]<=tx_data;
+            data_r[9] <= 1;
+        end
         else if(!tx_flag)
-            data_r<=10'b1;
+            data_r<=10'h200;
      end
-     always@(posedge sclk or negedge reset)
-     begin
-        if(!reset||!tx_flag)
-            RS232_tx<=1;
-        else RS232_tx<=data_r[bit_cnt];
-     end
+     
 endmodule

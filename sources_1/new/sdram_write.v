@@ -189,11 +189,17 @@ module sdram_write(
             S_ACT:
                 if(act_cnt == 0)
                     wr_addr = row_addr;
+                else 
+                    wr_addr = 0;
             S_WR:
                 wr_addr =  {3'b000,col_addr};
             S_PRE:
                 if(break_cnt == 0)
                     wr_addr =  {12'b0100_0000_0000};
+                else 
+                    wr_addr = 0;
+            default:
+                    wr_addr = 0;
         endcase
     end
     always @(posedge sclk or negedge reset)
